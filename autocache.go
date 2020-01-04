@@ -67,7 +67,7 @@ type Autocache struct {
 	scheme    string
 	port      int
 	cacheSize int64
-	cache     *groupcache.Group
+	Cache     *groupcache.Group
 	pool      *groupcache.HTTPPool
 
 	logger *log.Logger
@@ -112,7 +112,7 @@ func New(o *Options) (*Autocache, error) {
 		return nil, errors.New("memberlist self addr cannot be nil")
 	}
 	ac.self = list.Members()[0].Addr.String()
-	ac.cache = groupcache.NewGroup(o.GroupName, ac.cacheSize, o.GetterFn)
+	ac.Cache = groupcache.NewGroup(o.GroupName, ac.cacheSize, o.GetterFn)
 	ac.pool = groupcache.NewHTTPPoolOpts(
 		ac.groupcacheURL(ac.self),
 		&groupcache.HTTPPoolOptions{
@@ -192,10 +192,10 @@ func (ac *Autocache) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now()
 	defer func() {
-		log.Printf("cacheHandler: group[%s]\tkey[%q]\ttime[%v]", ac.cache.Name(), key, time.Since(now))
+		log.Printf("cacheHandler: group[%s]\tkey[%q]\ttime[%v]", ac.Cache.Name(), key, time.Since(now))
 	}()
 	var respBody []byte
-	if err := ac.cache.Get(r.Context(), key, groupcache.AllocatingByteSliceSink(&respBody)); err != nil {
+	if err := ac.Cache.Get(r.Context(), key, groupcache.AllocatingByteSliceSink(&respBody)); err != nil {
 		ac.logger.Printf("Get/cache.Get error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -205,7 +205,7 @@ func (ac *Autocache) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ac *Autocache) statsHandler(w http.ResponseWriter, r *http.Request) {
-	respBody, err := json.Marshal(&ac.cache.Stats)
+	respBody, err := json.Marshal(&ac.Cache.Stats)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
