@@ -15,7 +15,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v1
             - name: build
-              run: go build -o /go/bin/autocache cmd/autocache/main.go
+              run: go build -o bin/autocache cmd/autocache/main.go
             - name: upload artifacts
               uses: actions/upload-artifact@master
               with:
