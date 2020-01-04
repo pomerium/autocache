@@ -1,11 +1,13 @@
 package autocache // import "github.com/pomerium/autocache"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/golang/groupcache"
@@ -21,12 +23,19 @@ type Options struct {
 	Port        int
 	CacheSize   int64
 	GroupName   string
-	GetterFn    groupcache.Getter
 	EnableStats bool
+	GetterFn    groupcache.Getter
+	// Transport optionally specifies an http.RoundTripper for the client
+	// to use when it makes a request to another groupcache node.
+	// If nil, the client uses http.DefaultTransport.
+	TransportFn func(context.Context) http.RoundTripper
 
 	// Memberlist related
 	SeedNodes        []string
 	MemberlistConfig *memberlist.Config
+
+	// Logger is a custom logger which you provide.
+	Logger *log.Logger
 }
 
 func (o *Options) validate() error {
@@ -49,8 +58,9 @@ func (o *Options) validate() error {
 }
 
 type Autocache struct {
-	self    string
-	peers   []string
+	self  string
+	peers []string
+	// Handler are
 	Handler http.Handler
 
 	// groupcache related
@@ -60,10 +70,13 @@ type Autocache struct {
 	cache     *groupcache.Group
 	pool      *groupcache.HTTPPool
 
-	// todo(bdd): support custom logger
-	// Logger *log.Logger
+	logger *log.Logger
 }
 
+// New creates a new Autocache instance, setups memberlist, and
+// invokes groupcache's peer pooling handlers.
+//
+// NB: By default
 func New(o *Options) (*Autocache, error) {
 	if err := o.validate(); err != nil {
 		return nil, err
@@ -72,15 +85,22 @@ func New(o *Options) (*Autocache, error) {
 		scheme:    o.Scheme,
 		port:      o.Port,
 		cacheSize: 4 << 20,
+		logger:    o.Logger,
+	}
+	if o.Logger == nil {
+		ac.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 	if o.CacheSize != 0 {
 		ac.cacheSize = o.CacheSize
 	}
-	mlConfig := memberlist.DefaultLANConfig()
-	if o.MemberlistConfig != nil {
-		mlConfig = o.MemberlistConfig
+
+	mlConfig := o.MemberlistConfig
+	if mlConfig == nil {
+		ac.logger.Println("defaulting to lan configuration")
+		mlConfig = memberlist.DefaultLANConfig()
 	}
 	mlConfig.Events = &ac
+	mlConfig.Logger = ac.logger
 	list, err := memberlist.Create(mlConfig)
 	if err != nil {
 		return nil, err
@@ -89,21 +109,25 @@ func New(o *Options) (*Autocache, error) {
 		return nil, errors.New("memberlist can't find self")
 	}
 	if list.Members()[0].Addr == nil {
-		return nil, errors.New("self addr cannot be nil")
+		return nil, errors.New("memberlist self addr cannot be nil")
 	}
 	ac.self = list.Members()[0].Addr.String()
 	ac.cache = groupcache.NewGroup(o.GroupName, ac.cacheSize, o.GetterFn)
-	ac.pool = groupcache.NewHTTPPoolOpts(ac.groupcacheURL(ac.self), &groupcache.HTTPPoolOptions{})
+	ac.pool = groupcache.NewHTTPPoolOpts(
+		ac.groupcacheURL(ac.self),
+		&groupcache.HTTPPoolOptions{
+			BasePath: "/",
+		},
+	)
+	if o.TransportFn != nil {
+		ac.pool.Transport = o.TransportFn
+	}
 
 	mux := http.NewServeMux()
 	if o.EnableStats {
 		mux.HandleFunc("/stats/", ac.statsHandler)
 	}
-	// todo(bdd): add signature verify middleware
-	//
-	mux.HandleFunc("/get/", ac.cacheHandler)
-	// in a real app you probably want this served from a different listener
-	// the default handler actually panics(!?!) on unknown route
+	mux.HandleFunc("/get/", ac.Get)
 	mux.Handle("/", ac.pool)
 	ac.Handler = mux
 	if _, err := list.Join(o.SeedNodes); err != nil {
@@ -125,7 +149,7 @@ func (ac *Autocache) NotifyJoin(node *memberlist.Node) {
 	ac.peers = append(ac.peers, uri)
 	if ac.pool != nil {
 		ac.pool.Set(ac.peers...)
-		log.Printf("NotifyJoin: %s\tpeers: %v", uri, len(ac.peers))
+		ac.logger.Printf("NotifyJoin:%s peers: %v", uri, len(ac.peers))
 	}
 }
 
@@ -136,14 +160,14 @@ func (ac *Autocache) NotifyLeave(node *memberlist.Node) {
 	uri := ac.groupcacheURL(node.Addr.String())
 	ac.removePeer(uri)
 	ac.pool.Set(ac.peers...)
-	log.Printf("NotifyLeave: %s\tpeers: %v", uri, len(ac.peers))
+	ac.logger.Printf("NotifyLeave:%s peers: %v", uri, len(ac.peers))
 }
 
 // NotifyUpdate is invoked when a node is detected to have
 // updated, usually involving the meta data. The Node argument
 // must not be modified. Implements memberlist EventDelegate's interface.
 func (ac *Autocache) NotifyUpdate(node *memberlist.Node) {
-	log.Printf("NotifyUpdate: %+v\n", node)
+	ac.logger.Printf("NotifyUpdate: %+v\n", node)
 }
 
 func (ac *Autocache) removePeer(uri string) {
@@ -155,15 +179,24 @@ func (ac *Autocache) removePeer(uri string) {
 	}
 }
 
-func (ac *Autocache) cacheHandler(w http.ResponseWriter, r *http.Request) {
+// Get attempts to retrieve the query param value of `key` from the cache.
+func (ac *Autocache) Get(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
 	key := r.FormValue("key")
+	if key == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 	now := time.Now()
 	defer func() {
 		log.Printf("cacheHandler: group[%s]\tkey[%q]\ttime[%v]", ac.cache.Name(), key, time.Since(now))
 	}()
 	var respBody []byte
 	if err := ac.cache.Get(r.Context(), key, groupcache.AllocatingByteSliceSink(&respBody)); err != nil {
-		log.Printf("cacheHandler/cache.Get: %v", err)
+		ac.logger.Printf("Get/cache.Get error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
