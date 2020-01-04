@@ -17,6 +17,8 @@ const (
 	defaultAddr = ":http"
 )
 
+var exampleCache cache
+
 func main() {
 	addr := os.Getenv("ADDR")
 	if addr == "" {
@@ -28,17 +30,21 @@ func main() {
 		existing = strings.Split(nodes, ",")
 	}
 
-	o := autocache.Options{
-		Scheme:    "http",
-		Port:      80,
-		SeedNodes: existing,
-		GroupName: "bcryptKey",
-		GetterFn:  groupcache.GetterFunc(bcryptKey)}
-	ac, err := autocache.New(&o)
+	ac, err := autocache.New(
+		&autocache.Options{
+			Scheme:    "http",
+			Port:      80,
+			SeedNodes: existing})
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Fatal(http.ListenAndServe(addr, ac.Handler))
+
+	exampleCache.group = groupcache.NewGroup("bcrypt", 1<<20, groupcache.GetterFunc(bcryptKey))
+
+	mux := http.NewServeMux()
+	mux.Handle("/get/", exampleCache)
+	mux.Handle("/_groupcache/", ac.Pool)
+	log.Fatal(http.ListenAndServe(addr, mux))
 
 }
 
@@ -59,4 +65,32 @@ func bcryptKey(ctx context.Context, key string, dst groupcache.Sink) error {
 		return err
 	}
 	return nil
+}
+
+type cache struct {
+	group *groupcache.Group
+}
+
+func (ac cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+	key := r.FormValue("key")
+	if key == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	now := time.Now()
+	defer func() {
+		log.Printf("cacheHandler: group[%s]\tkey[%q]\ttime[%v]", ac.group.Name(), key, time.Since(now))
+	}()
+	var respBody []byte
+	if err := ac.group.Get(r.Context(), key, groupcache.AllocatingByteSliceSink(&respBody)); err != nil {
+		log.Printf("Get/cache.Get error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBody)
 }

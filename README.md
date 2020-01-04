@@ -9,12 +9,16 @@
 
 ## TL;DR
 
-Run `docker-compose up --scale autocache=5`
+See `cmd/autocache/main.go` for usage.
+
+### Run
+
+`docker-compose up --scale autocache=5`
 
 ### Client
 
 ```bash
-for i in`seq 10`; do curl "http://autocache.localhost/get/?key=hunter42";echo; done
+for i in`seq 10`; do curl "http://autocache.localhost/get/?key=hunter2";echo; done
 
 ```
 
@@ -34,15 +38,14 @@ $2a$14$1CCq.8WOxEmLY3jdkwZKIeR1bN/B0jnWwwSKc1VTf60A57VOXKblC
 ### Server
 
 ```
-autocache_4  | bcryptKey/key:"hunter42"	time:920.3141ms
-autocache_2  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[921.3286ms]
-autocache_1  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[1.3112ms]
-autocache_5  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[783.4µs]
-autocache_4  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[11.5µs]
-autocache_3  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[1.2833ms]
-autocache_2  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[735.6µs]
-autocache_1  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[539.8µs]
-autocache_5  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[902.2µs]
-autocache_4  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[11.7µs]
-autocache_3  | cacheHandler: group[bcryptKey]	key["hunter42"]	time[697.2µs]
+autocache_5  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.4064ms]
+autocache_3  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.1171ms]
+autocache_4  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[12.9µs]
+autocache_1  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[916.9µs]
+autocache_2  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[903.5µs]
+autocache_5  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[544µs]
+autocache_3  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[534.6µs]
+autocache_4  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[19.2µs]
+autocache_1  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[796.1µs]
+autocache_2  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[626.9µs]
 ```
