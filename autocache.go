@@ -107,6 +107,7 @@ func New(o *Options) (*Autocache, error) {
 	if _, err := list.Join(o.SeedNodes); err != nil {
 		return nil, err
 	}
+	ac.logger.Printf("cache pool %+v\n", ac)
 	return &ac, nil
 }
 
