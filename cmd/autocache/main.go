@@ -43,7 +43,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/get/", exampleCache)
-	mux.Handle("/_groupcache/", ac.Pool)
+	mux.Handle("/_groupcache/", ac)
 	log.Fatal(http.ListenAndServe(addr, mux))
 
 }

@@ -38,14 +38,15 @@ $2a$14$1CCq.8WOxEmLY3jdkwZKIeR1bN/B0jnWwwSKc1VTf60A57VOXKblC
 ### Server
 
 ```
-autocache_5  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.4064ms]
-autocache_3  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.1171ms]
-autocache_4  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[12.9µs]
-autocache_1  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[916.9µs]
-autocache_2  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[903.5µs]
-autocache_5  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[544µs]
-autocache_3  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[534.6µs]
-autocache_4  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[19.2µs]
-autocache_1  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[796.1µs]
-autocache_2  | 2020/01/04 23:46:43 cacheHandler: group[bcrypt]	key["hunter2"]	time[626.9µs]
+autocache_2  | 2020/01/06 06:10:51 bcryptKey/key:"hunter2"	time:969.8645ms
+autocache_2  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[969.9474ms]
+autocache_1  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.3559ms]
+autocache_3  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.1236ms]
+autocache_4  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.2935ms]
+autocache_5  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[985.2µs]
+autocache_6  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[1.2163ms]
+autocache_2  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[23.3µs]
+autocache_1  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[495.3µs]
+autocache_3  | 2020/01/06 06:10:51 cacheHandler: group[bcrypt]	key["hunter2"]	time[497.3µs]
+autocache_4  | 2020/01/06 06:10:52 cacheHandler: group[bcrypt]	key["hunter2"]	time[770.5µs]
 ```

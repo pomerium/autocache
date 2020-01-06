@@ -154,3 +154,11 @@ func (ac *Autocache) removePeer(uri string) {
 		}
 	}
 }
+
+func (ac *Autocache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if ac.Pool == nil {
+		http.Error(w, "pool not initialized", http.StatusInternalServerError)
+		return
+	}
+	ac.Pool.ServeHTTP(w, r)
+}
