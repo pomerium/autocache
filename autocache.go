@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/golang/groupcache"
@@ -16,10 +17,8 @@ var _ memberlist.EventDelegate = &Autocache{}
 
 // Options are the configurations of a Autocache.
 type Options struct {
-	// Groupcache uses normal HTTP for RPC. We need to know the scheme
-	// and port to use to build the RPC request.
-	Scheme string
-	Port   int
+	// Groupcache related
+	//
 	// Transport optionally specifies an http.RoundTripper for the client
 	// to use when it makes a request to another groupcache node.
 	// If nil, the client uses http.DefaultTransport.
@@ -29,6 +28,9 @@ type Options struct {
 	// Memberlist related
 	//
 	// SeedNodes is a slice of addresses we use to bootstrap peer discovery
+	// Seed nodes should contain a list of valid URLs including scheme and port
+	// if those are used to connect to your group cache cluster. (e.g. "https://example.net:8000")
+	// Memberlist will be bootstrapped using just the hostname of those seed URLS.
 	SeedNodes []string
 	// MemberlistConfig ist he memberlist configuration to use.
 	// If empty, `DefaultLANConfig` is used.
@@ -39,14 +41,15 @@ type Options struct {
 }
 
 func (o *Options) validate() error {
-	if o.Scheme == "" {
-		return errors.New("scheme is required")
-	}
-	if o.Port == 0 {
-		return errors.New("port is required")
-	}
 	if len(o.SeedNodes) == 0 {
 		return errors.New("must supply at least one seed node")
+	}
+	u, err := url.Parse(o.SeedNodes[0])
+	if err != nil {
+		return err
+	}
+	if u.Scheme == "" {
+		return fmt.Errorf("%s has no scheme", u.String())
 	}
 	return nil
 }
@@ -57,7 +60,7 @@ type Autocache struct {
 	self   string
 	peers  []string
 	scheme string
-	port   int
+	port   string
 
 	logger *log.Logger
 }
@@ -68,12 +71,14 @@ func New(o *Options) (*Autocache, error) {
 	if err := o.validate(); err != nil {
 		return nil, err
 	}
-	ac := Autocache{
-		scheme: o.Scheme,
-		port:   o.Port,
-		logger: o.Logger,
-	}
-	if o.Logger == nil {
+	var ac Autocache
+
+	u, _ := url.Parse(o.SeedNodes[0]) // err checked in validate
+	ac.scheme = u.Scheme
+	ac.port = u.Port()
+
+	ac.logger = o.Logger
+	if ac.logger == nil {
 		ac.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
@@ -104,16 +109,28 @@ func New(o *Options) (*Autocache, error) {
 		ac.Pool.Transport = o.TransportFn
 	}
 
-	if _, err := list.Join(o.SeedNodes); err != nil {
-		return nil, err
+	seeds := make([]string, len(o.SeedNodes))
+	for k, v := range o.SeedNodes {
+		u, err := url.Parse(v)
+		if err != nil {
+			return nil, err
+		}
+		seeds[k] = u.Hostname()
 	}
-	ac.logger.Printf("cache pool %+v\n", ac)
+
+	if _, err := list.Join(seeds); err != nil {
+		return nil, fmt.Errorf("couldn't join memberlist cluster: %w", err)
+	}
 	return &ac, nil
 }
 
 // groupcacheURL builds a groupcache friendly RPC url from an address
 func (ac *Autocache) groupcacheURL(addr string) string {
-	return fmt.Sprintf("%s://%s:%d", ac.scheme, addr, ac.port)
+	u := fmt.Sprintf("%s://%s", ac.scheme, addr)
+	if ac.port != "" {
+		u = fmt.Sprintf("%s:%s", u, ac.port)
+	}
+	return u
 }
 
 // NotifyJoin is invoked when a node is detected to have joined.
@@ -125,7 +142,7 @@ func (ac *Autocache) NotifyJoin(node *memberlist.Node) {
 	ac.peers = append(ac.peers, uri)
 	if ac.Pool != nil {
 		ac.Pool.Set(ac.peers...)
-		ac.logger.Printf("NotifyJoin:%s peers: %v", uri, len(ac.peers))
+		ac.logger.Printf("Autocache/NotifyJoin: %s peers: %v", uri, len(ac.peers))
 	}
 }
 
@@ -136,14 +153,14 @@ func (ac *Autocache) NotifyLeave(node *memberlist.Node) {
 	uri := ac.groupcacheURL(node.Addr.String())
 	ac.removePeer(uri)
 	ac.Pool.Set(ac.peers...)
-	ac.logger.Printf("NotifyLeave:%s peers: %v", uri, len(ac.peers))
+	ac.logger.Printf("Autocache/NotifyLeave: %s peers: %v", uri, len(ac.peers))
 }
 
 // NotifyUpdate is invoked when a node is detected to have
 // updated, usually involving the meta data. The Node argument
 // must not be modified. Implements memberlist EventDelegate's interface.
 func (ac *Autocache) NotifyUpdate(node *memberlist.Node) {
-	ac.logger.Printf("NotifyUpdate: %+v\n", node)
+	ac.logger.Printf("Autocache/NotifyUpdate: %+v", node)
 }
 
 func (ac *Autocache) removePeer(uri string) {
