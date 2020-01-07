@@ -66,7 +66,8 @@ type Autocache struct {
 }
 
 // New creates a new Autocache instance, setups memberlist, and
-// invokes groupcache's peer pooling handlers.
+// invokes groupcache's peer pooling handlers. Note, by design a groupcache
+// pool can only be made _once_.
 func New(o *Options) (*Autocache, error) {
 	if err := o.validate(); err != nil {
 		return nil, err
@@ -89,17 +90,20 @@ func New(o *Options) (*Autocache, error) {
 	}
 	mlConfig.Events = &ac
 	mlConfig.Logger = ac.logger
-	list, err := memberlist.Create(mlConfig)
+	memberlist, err := memberlist.Create(mlConfig)
 	if err != nil {
 		return nil, err
 	}
-	if len(list.Members()) == 0 {
+	// the only way memberlist would be empty here, following create is if
+	// the current node suddenly died. Still, we check to be safe.
+	if len(memberlist.Members()) == 0 {
 		return nil, errors.New("memberlist can't find self")
 	}
-	if list.Members()[0].Addr == nil {
-		return nil, errors.New("memberlist self addr cannot be nil")
+	self := memberlist.Members()[0]
+	if self.Addr == nil {
+		return nil, errors.New("self addr cannot be nil")
 	}
-	ac.self = list.Members()[0].Addr.String()
+	ac.self = self.Addr.String()
 	poolOptions := &groupcache.HTTPPoolOptions{}
 	if o.PoolOptions != nil {
 		poolOptions = o.PoolOptions
@@ -118,7 +122,7 @@ func New(o *Options) (*Autocache, error) {
 		seeds[k] = u.Hostname()
 	}
 
-	if _, err := list.Join(seeds); err != nil {
+	if _, err := memberlist.Join(seeds); err != nil {
 		return nil, fmt.Errorf("couldn't join memberlist cluster: %w", err)
 	}
 	return &ac, nil
