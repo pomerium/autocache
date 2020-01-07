@@ -1,7 +1,9 @@
-[![pomerium chat](https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack)](http://slack.pomerium.io)
+[![Build Status](https://github.com/pomerium/autocache/workflows/build/badge.svg)](https://github.com/pomerium/autocache/actions?workflow=build)
+[![Travis CI](https://travis-ci.org/pomerium/autocache.svg?branch=master)](https://travis-ci.org/pomerium/autocache)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/autocache)](https://goreportcard.com/report/github.com/pomerium/autocache)
 [![GoDoc](https://godoc.org/github.com/pomerium/autocache?status.svg)](https://godoc.org/github.com/pomerium/autocache)
 [![LICENSE](https://img.shields.io/github/license/pomerium/autocache.svg)](https://github.com/pomerium/autocache/blob/master/LICENSE)
+[![pomerium chat](https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack)](http://slack.pomerium.io)
 
 # Autocache
 

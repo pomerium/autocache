@@ -54,6 +54,8 @@ func (o *Options) validate() error {
 	return nil
 }
 
+// Autocache implements automatic, distributed membership for a cluster
+// of cache pool peers.
 type Autocache struct {
 	Pool *groupcache.HTTPPool
 

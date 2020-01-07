@@ -1,0 +1,77 @@
+on: [push, pull_request]
+name: build
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.x
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Lint Dependencies
+        run: make build-deps
+      - name: Lint
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make lint
+  test:
+    strategy:
+      matrix:
+        go-version: [1.13.x]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Test
+        run: make test
+
+  cover:
+    strategy:
+      matrix:
+        go-version: [1.13.x]
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Test
+        run: make cover
+      - name: CodeCov
+        uses: codecov/codecov-action@v1.0.4
+        with:
+          # The token below is used exclusively for uploading coverage reports.
+          token: "00f85ce4-e4e9-4022-83e8-89a75fa2a307"
+          file: ./coverage.txt
+
+  build:
+    needs: [lint, test]
+    strategy:
+      matrix:
+        go-version: [1.13.x]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: build
+        run: make build
+      - name: upload artifacts
+        uses: actions/upload-artifact@master
+        with:
+          name: binaries
+          path: bin/
