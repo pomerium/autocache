@@ -13,7 +13,12 @@ BUILDTAGS :=
 GOLANGCI_VERSION = v1.21.0 # .... for some reason v1.18.0 misses?
 
 .PHONY: all
-all: build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
+
+.PHONY: clean
+clean: ## Cleanup any build binaries or packages.
+	@echo "==> $@"
+	$(RM) -r $(BINDIR)
 
 
 .PHONY: build-deps
@@ -25,7 +30,7 @@ build-deps: ## Install build dependencies
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME)
 
 
 .PHONY: test

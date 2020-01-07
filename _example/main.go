@@ -88,5 +88,5 @@ func (ac cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, respBody)
+	fmt.Fprint(w, string(respBody))
 }

@@ -11,7 +11,7 @@
 
 ## TL;DR
 
-See `cmd/autocache/main.go` for usage.
+See `/_example/main.go` for usage.
 
 ### Run
 
