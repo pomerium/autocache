@@ -13,6 +13,6 @@ services:
       - VIRTUAL_HOST=autocache.localhost
       - VIRTUAL_PORT=80
       - NODES=autocache
-    image: pomerium/autocache:latest
+    image: autocache
     expose:
       - 80

@@ -18,8 +18,6 @@ const (
 	defaultAddr = ":http"
 )
 
-var exampleCache cache
-
 func main() {
 	addr := os.Getenv("ADDR")
 	if addr == "" {
@@ -31,12 +29,15 @@ func main() {
 		existing = strings.Split(nodes, ",")
 	}
 
-	ac, err := autocache.New(&autocache.Options{SeedNodes: existing})
+	ac, err := autocache.New(&autocache.Options{})
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	exampleCache.group = groupcache.NewGroup("bcrypt", 1<<20, groupcache.GetterFunc(bcryptKey))
+	if _, err := ac.Join(existing); err != nil {
+		log.Fatal(err)
+	}
+	var exampleCache cache
+	exampleCache.group = groupcache.NewGroup("bcrypt", 1<<20, exampleCache)
 
 	mux := http.NewServeMux()
 	mux.Handle("/get/", exampleCache)
@@ -45,10 +46,14 @@ func main() {
 
 }
 
-// bcryptKey is am arbitrary getter function. Bcrypt is nice here because, it:
+type cache struct {
+	group *groupcache.Group
+}
+
+// Get is am arbitrary getter function. Bcrypt is nice here because, it:
 //	1) takes a long time
 //	2) uses a random seed so non-cache results for the same key are obvious
-func bcryptKey(ctx context.Context, key string, dst groupcache.Sink) error {
+func (ac cache) Get(ctx context.Context, key string, dst groupcache.Sink) error {
 	now := time.Now()
 	defer func() {
 		log.Printf("bcryptKey/key:%q\ttime:%v", key, time.Since(now))
@@ -61,10 +66,6 @@ func bcryptKey(ctx context.Context, key string, dst groupcache.Sink) error {
 		return err
 	}
 	return nil
-}
-
-type cache struct {
-	group *groupcache.Group
 }
 
 func (ac cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {

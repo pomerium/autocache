@@ -11,11 +11,11 @@
 
 ## TL;DR
 
-See `/_example/main.go` for usage.
+See `/_example/` for usage.
 
 ### Run
 
-`docker-compose up --scale autocache=5`
+`docker-compose up -f _example/docker-compose.yaml --scale autocache=5`
 
 ### Client
 
