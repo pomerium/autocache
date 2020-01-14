@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/golang/groupcache"
@@ -19,19 +18,23 @@ var _ memberlist.EventDelegate = &Autocache{}
 type Options struct {
 	// Groupcache related
 	//
+	// Groupcache's pool is a HTTP handler. Scheme and port should be set
+	// such that group cache's internal http client, used to fetch, distributed
+	// keys, knows how to build the request URL.
+	PoolOptions *groupcache.HTTPPoolOptions
+	PoolScheme  string
+	PoolPort    int
 	// Transport optionally specifies an http.RoundTripper for the client
 	// to use when it makes a request to another groupcache node.
 	// If nil, the client uses http.DefaultTransport.
-	TransportFn func(context.Context) http.RoundTripper
-	PoolOptions *groupcache.HTTPPoolOptions
+	PoolTransportFn func(context.Context) http.RoundTripper
+	// Context optionally specifies a context for the server to use when it
+	// receives a request.
+	// If nil, the server uses the request's context
+	PoolContext func(*http.Request) context.Context
 
 	// Memberlist related
 	//
-	// SeedNodes is a slice of addresses we use to bootstrap peer discovery
-	// Seed nodes should contain a list of valid URLs including scheme and port
-	// if those are used to connect to your group cache cluster. (e.g. "https://example.net:8000")
-	// Memberlist will be bootstrapped using just the hostname of those seed URLS.
-	SeedNodes []string
 	// MemberlistConfig ist he memberlist configuration to use.
 	// If empty, `DefaultLANConfig` is used.
 	MemberlistConfig *memberlist.Config
@@ -40,24 +43,11 @@ type Options struct {
 	Logger *log.Logger
 }
 
-func (o *Options) validate() error {
-	if len(o.SeedNodes) == 0 {
-		return errors.New("must supply at least one seed node")
-	}
-	u, err := url.Parse(o.SeedNodes[0])
-	if err != nil {
-		return err
-	}
-	if u.Scheme == "" {
-		return fmt.Errorf("%s has no scheme", u.String())
-	}
-	return nil
-}
-
 // Autocache implements automatic, distributed membership for a cluster
 // of cache pool peers.
 type Autocache struct {
-	Pool *groupcache.HTTPPool
+	GroupcachePool *groupcache.HTTPPool
+	Memberlist     *memberlist.Memberlist
 
 	self   string
 	peers  []string
@@ -71,63 +61,77 @@ type Autocache struct {
 // invokes groupcache's peer pooling handlers. Note, by design a groupcache
 // pool can only be made _once_.
 func New(o *Options) (*Autocache, error) {
-	if err := o.validate(); err != nil {
-		return nil, err
+	var err error
+	ac := Autocache{
+		scheme: o.PoolScheme,
+		port:   fmt.Sprintf("%d", o.PoolPort),
+		logger: o.Logger,
 	}
-	var ac Autocache
-
-	u, _ := url.Parse(o.SeedNodes[0]) // err checked in validate
-	ac.scheme = u.Scheme
-	ac.port = u.Port()
-
-	ac.logger = o.Logger
 	if ac.logger == nil {
 		ac.logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+	ac.logger.Printf("autocache: with options: %+v", o)
+
+	if ac.scheme == "" {
+		ac.logger.Printf("autocache: pool scheme not set, assuming http://")
+		ac.scheme = "http"
+	}
+	if ac.port == "0" {
+		ac.logger.Printf("autocache: pool port not set, assuming empty")
+		ac.port = ""
 	}
 
 	mlConfig := o.MemberlistConfig
 	if mlConfig == nil {
-		ac.logger.Println("defaulting to lan configuration")
+		ac.logger.Println("autocache: defaulting to lan configuration")
 		mlConfig = memberlist.DefaultLANConfig()
 	}
 	mlConfig.Events = &ac
 	mlConfig.Logger = ac.logger
-	memberlist, err := memberlist.Create(mlConfig)
-	if err != nil {
-		return nil, err
+	if ac.Memberlist, err = memberlist.Create(mlConfig); err != nil {
+		return nil, fmt.Errorf("autocache: can't create memberlist: %w", err)
 	}
 	// the only way memberlist would be empty here, following create is if
 	// the current node suddenly died. Still, we check to be safe.
-	if len(memberlist.Members()) == 0 {
+	if len(ac.Memberlist.Members()) == 0 {
 		return nil, errors.New("memberlist can't find self")
 	}
-	self := memberlist.Members()[0]
+	self := ac.Memberlist.Members()[0]
 	if self.Addr == nil {
 		return nil, errors.New("self addr cannot be nil")
 	}
 	ac.self = self.Addr.String()
+	ac.logger.Printf("autocache: self addr is: %s", ac.self)
 	poolOptions := &groupcache.HTTPPoolOptions{}
 	if o.PoolOptions != nil {
 		poolOptions = o.PoolOptions
 	}
-	ac.Pool = groupcache.NewHTTPPoolOpts(ac.groupcacheURL(ac.self), poolOptions)
-	if o.TransportFn != nil {
-		ac.Pool.Transport = o.TransportFn
+	gcSelf := ac.groupcacheURL(ac.self)
+	ac.logger.Printf("autocache groupcache self: %s options: %+v", gcSelf, poolOptions)
+	ac.GroupcachePool = groupcache.NewHTTPPoolOpts(gcSelf, poolOptions)
+	if o.PoolTransportFn != nil {
+		ac.GroupcachePool.Transport = o.PoolTransportFn
 	}
-
-	seeds := make([]string, len(o.SeedNodes))
-	for k, v := range o.SeedNodes {
-		u, err := url.Parse(v)
-		if err != nil {
-			return nil, err
-		}
-		seeds[k] = u.Hostname()
-	}
-
-	if _, err := memberlist.Join(seeds); err != nil {
-		return nil, fmt.Errorf("couldn't join memberlist cluster: %w", err)
+	if o.PoolContext != nil {
+		ac.GroupcachePool.Context = o.PoolContext
 	}
 	return &ac, nil
+}
+
+// Join is used to take an existing Memberlist and attempt to join a cluster
+// by contacting all the given hosts and performing a state sync. Initially,
+// the Memberlist only contains our own state, so doing this will cause
+// remote nodes to become aware of the existence of this node, effectively
+// joining the cluster.
+//
+// This returns the number of hosts successfully contacted and an error if
+// none could be reached. If an error is returned, the node did not successfully
+// join the cluster.
+func (ac *Autocache) Join(existing []string) (int, error) {
+	if ac.Memberlist == nil {
+		return 0, errors.New("memberlist cannot be nil")
+	}
+	return ac.Memberlist.Join(existing)
 }
 
 // groupcacheURL builds a groupcache friendly RPC url from an address
@@ -146,8 +150,8 @@ func (ac *Autocache) NotifyJoin(node *memberlist.Node) {
 	uri := ac.groupcacheURL(node.Addr.String())
 	ac.removePeer(uri)
 	ac.peers = append(ac.peers, uri)
-	if ac.Pool != nil {
-		ac.Pool.Set(ac.peers...)
+	if ac.GroupcachePool != nil {
+		ac.GroupcachePool.Set(ac.peers...)
 		ac.logger.Printf("Autocache/NotifyJoin: %s peers: %v", uri, len(ac.peers))
 	}
 }
@@ -158,7 +162,7 @@ func (ac *Autocache) NotifyJoin(node *memberlist.Node) {
 func (ac *Autocache) NotifyLeave(node *memberlist.Node) {
 	uri := ac.groupcacheURL(node.Addr.String())
 	ac.removePeer(uri)
-	ac.Pool.Set(ac.peers...)
+	ac.GroupcachePool.Set(ac.peers...)
 	ac.logger.Printf("Autocache/NotifyLeave: %s peers: %v", uri, len(ac.peers))
 }
 
@@ -179,9 +183,9 @@ func (ac *Autocache) removePeer(uri string) {
 }
 
 func (ac *Autocache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if ac.Pool == nil {
+	if ac.GroupcachePool == nil {
 		http.Error(w, "pool not initialized", http.StatusInternalServerError)
 		return
 	}
-	ac.Pool.ServeHTTP(w, r)
+	ac.GroupcachePool.ServeHTTP(w, r)
 }

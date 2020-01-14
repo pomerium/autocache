@@ -1,7 +1,9 @@
 package autocache
 
 import (
+	"context"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -16,16 +18,23 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name       string
 		o          *Options
+		seed       []string
 		path       string
 		wantErr    bool
 		wantStatus int
 		wantBody   string
 	}{
-		{"complete config", &Options{PoolOptions: &groupcache.HTTPPoolOptions{BasePath: "/"}, SeedNodes: []string{"http://localhost:80", "http://127.0.0.1"}}, "/no_such_group/2/", false, 404, "no such group: no_such_group\n"},
-		{"reject empty seed", &Options{SeedNodes: []string{}}, "", true, 0, ""},
-		{"reject schemeless url", &Options{SeedNodes: []string{"localhost"}}, "", true, 0, ""},
-		{"reject malformed url", &Options{SeedNodes: []string{"%^notscheme-url:80"}}, "", true, 0, ""},
-		{"memberlist can't find self", &Options{SeedNodes: []string{"http://0.0.0.0"}}, "", true, 0, ""},
+		{"complete config",
+			&Options{
+				PoolContext:     func(_ *http.Request) context.Context { return context.TODO() },
+				PoolTransportFn: func(_ context.Context) http.RoundTripper { return http.DefaultTransport },
+				PoolOptions:     &groupcache.HTTPPoolOptions{BasePath: "/"},
+			},
+			[]string{"localhost"},
+			"/no_such_group/2/",
+			false,
+			404,
+			"no such group: no_such_group\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -34,10 +43,10 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			_, err = s.Join(tt.seed)
 			if err != nil {
-				return
+				t.Fatal(err)
 			}
-
 			r := httptest.NewRequest("GET", tt.path, nil)
 			w := httptest.NewRecorder()
 			s.ServeHTTP(w, r)
@@ -65,6 +74,14 @@ func TestNew(t *testing.T) {
 			s.NotifyUpdate(&memberlist.Node{Addr: ip})
 			if len(s.peers) != 1 {
 				t.Errorf("NotifyUpdate failed")
+			}
+			// check nill conditions
+			s.GroupcachePool = nil
+			r = httptest.NewRequest("GET", tt.path, nil)
+			w = httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if status := w.Code; status != 500 {
+				t.Errorf("status code: got %v want %v", status, 500)
 			}
 		})
 	}
