@@ -133,9 +133,7 @@ func (ac *Autocache) Join(existing []string) (int, error) {
 	if ac.Memberlist == nil {
 		return 0, errors.New("memberlist cannot be nil")
 	}
-	if len(existing) == 0 {
-		existing = []string{ac.self}
-	}
+	existing = append(existing, ac.self)
 	return ac.Memberlist.Join(existing)
 }
 
