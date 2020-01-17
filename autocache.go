@@ -107,7 +107,7 @@ func New(o *Options) (*Autocache, error) {
 		poolOptions = o.PoolOptions
 	}
 	gcSelf := ac.groupcacheURL(ac.self)
-	ac.logger.Printf("autocache groupcache self: %s options: %+v", gcSelf, poolOptions)
+	ac.logger.Printf("autocache: groupcache self: %s options: %+v", gcSelf, poolOptions)
 	ac.GroupcachePool = groupcache.NewHTTPPoolOpts(gcSelf, poolOptions)
 	if o.PoolTransportFn != nil {
 		ac.GroupcachePool.Transport = o.PoolTransportFn
@@ -127,9 +127,14 @@ func New(o *Options) (*Autocache, error) {
 // This returns the number of hosts successfully contacted and an error if
 // none could be reached. If an error is returned, the node did not successfully
 // join the cluster.
+//
+// If an empty list is provided to this function, the memberlist will join itself.
 func (ac *Autocache) Join(existing []string) (int, error) {
 	if ac.Memberlist == nil {
 		return 0, errors.New("memberlist cannot be nil")
+	}
+	if len(existing) == 0 {
+		existing = []string{ac.self}
 	}
 	return ac.Memberlist.Join(existing)
 }
