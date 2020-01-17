@@ -43,6 +43,10 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			_, err = s.Join(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			_, err = s.Join(tt.seed)
 			if err != nil {
 				t.Fatal(err)
