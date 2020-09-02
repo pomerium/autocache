@@ -1,15 +1,14 @@
 package autocache // import "github.com/pomerium/autocache"
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/golang/groupcache"
 	"github.com/hashicorp/memberlist"
+	"github.com/mailgun/groupcache"
 )
 
 var _ memberlist.EventDelegate = &Autocache{}
@@ -27,11 +26,11 @@ type Options struct {
 	// Transport optionally specifies an http.RoundTripper for the client
 	// to use when it makes a request to another groupcache node.
 	// If nil, the client uses http.DefaultTransport.
-	PoolTransportFn func(context.Context) http.RoundTripper
+	PoolTransportFn func(context groupcache.Context) http.RoundTripper
 	// Context optionally specifies a context for the server to use when it
 	// receives a request.
 	// If nil, the server uses the request's context
-	PoolContext func(*http.Request) context.Context
+	PoolContext func(*http.Request) groupcache.Context
 
 	// Memberlist related
 	//

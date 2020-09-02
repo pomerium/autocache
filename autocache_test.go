@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/golang/groupcache"
 	"github.com/hashicorp/memberlist"
+	"github.com/mailgun/groupcache"
 )
 
 // todo(bdd): test coverage could be improved by using memberlist's mock
@@ -26,8 +26,8 @@ func TestNew(t *testing.T) {
 	}{
 		{"complete config",
 			&Options{
-				PoolContext:     func(_ *http.Request) context.Context { return context.TODO() },
-				PoolTransportFn: func(_ context.Context) http.RoundTripper { return http.DefaultTransport },
+				PoolContext:     func(_ *http.Request) groupcache.Context { return context.TODO() },
+				PoolTransportFn: func(_ groupcache.Context) http.RoundTripper { return http.DefaultTransport },
 				PoolOptions:     &groupcache.HTTPPoolOptions{BasePath: "/"},
 			},
 			[]string{"localhost"},
