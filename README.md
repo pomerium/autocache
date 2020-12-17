@@ -15,7 +15,7 @@ See `/_example/` for usage.
 
 ### Run
 
-`docker-compose up -f _example/docker-compose.yaml --scale autocache=5`
+`docker-compose -f _example/docker-compose.yaml up --scale autocache=5`
 
 ### Client
 
