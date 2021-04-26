@@ -48,7 +48,7 @@ jobs:
       - name: Test
         run: make cover
       - name: CodeCov
-        uses: codecov/codecov-action@v1.2.1
+        uses: codecov/codecov-action@v1.4.1
         with:
           # The token below is used exclusively for uploading coverage reports.
           token: "00f85ce4-e4e9-4022-83e8-89a75fa2a307"
