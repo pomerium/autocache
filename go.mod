@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/armon/go-metrics v0.3.0 // indirect
-	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
