@@ -9,7 +9,7 @@ jobs:
         with:
           go-version: 1.13.x
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Lint Dependencies
         run: make build-deps
       - name: Lint
@@ -28,7 +28,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Test
         run: make test
 
@@ -44,7 +44,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Test
         run: make cover
       - name: CodeCov
@@ -67,7 +67,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: build
         run: make build
       - name: upload artifacts
