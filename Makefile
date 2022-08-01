@@ -24,7 +24,6 @@ clean: ## Cleanup any build binaries or packages.
 .PHONY: build-deps
 build-deps: ## Install build dependencies
 	@echo "==> $@"
-	@cd /tmp; GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 
 
 .PHONY: build
@@ -40,9 +39,9 @@ test: ## Runs the go tests
 
 
 .PHONY: lint
-lint: ## Verifies `golint` passes.
+lint: build-deps ## Verifies `golint` passes.
 	@echo "==> $@"
-	@golangci-lint run ./...
+	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 
 
 .PHONY: cover
