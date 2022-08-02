@@ -1,10 +1,10 @@
 module github.com/pomerium/autocache
 
-go 1.18
+go 1.19
 
 require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
-	github.com/golangci/golangci-lint v1.47.3
+	github.com/golangci/golangci-lint v1.43.0
 	github.com/hashicorp/memberlist v0.3.1
 )
 
@@ -32,9 +32,10 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/charithe/durationcheck v0.0.9 // indirect
 	github.com/chavacava/garif v0.0.0-20220316182200-5cad0b5181d4 // indirect
-	github.com/daixiang0/gci v0.5.0 // indirect
+	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/denis-tingaikin/go-header v0.4.3 // indirect
+	github.com/denis-tingajkin/go-header v0.4.2 // indirect
 	github.com/esimonov/ifshort v1.0.4 // indirect
 	github.com/ettle/strcase v0.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -101,6 +102,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mbilski/exhaustivestruct v1.2.0 // indirect
+	github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517 // indirect
 	github.com/mgechev/revive v1.2.1 // indirect
 	github.com/miekg/dns v1.1.35 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
