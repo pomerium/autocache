@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golangci/golangci-lint v1.47.3
-	github.com/hashicorp/memberlist v0.3.1
+	github.com/hashicorp/memberlist v0.3.2
 )
 
 require (
