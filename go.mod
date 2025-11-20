@@ -1,6 +1,6 @@
 module github.com/pomerium/autocache
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
@@ -22,9 +22,9 @@ require (
 	github.com/miekg/dns v1.1.35 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
 )
